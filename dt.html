@@ -1,0 +1,85 @@
+Model the following Car Showroom information as a graph model,and answer
+ the queries using Cypher. Consider a car showroom with different models of
+ cars like sofas Honda city, Skoda, Creta, Swift, Ertiga etc. Showroom is
+ divided into different sections, onesection for each car model; each section is
+ handled by a sales staff. Asales staff can handle one or more sections.
+ Customer may enquire about car. An enquiry may result in a purchase by the
+ customer.
+1. Identify the labels and relationships, along with their properties, and
+draw a high-level Graph model. [3]
+2. Create nodes and relationships, along with their properties, and
+visualize your actual Graph model. [3]
+3. Answer the following queries:
+a. List the types of cars available in the showroom. [3]
+b. List the sections handled by Mr. Narayan. [3]
+c. List the names of customers who have done only enquiry but not
+made any purchase. [4]
+d. List the highly sale car model. [4]
+
+
+# Step 1: Open MongoDB shell using mongosh
+mongosh
+
+# Step 2: Create a database for the Car Showroom information system
+use car_showroom_db
+
+# Step 3: Create collections for cars, sections, sales staff, and customers
+db.cars.insertMany([
+  { _id: 1, model: "Honda City", type: "Sedan", price: 1200000 },
+  { _id: 2, model: "Skoda", type: "SUV", price: 1500000 },
+  { _id: 3, model: "Creta", type: "SUV", price: 1300000 },
+  { _id: 4, model: "Swift", type: "Hatchback", price: 800000 },
+  { _id: 5, model: "Ertiga", type: "MPV", price: 1100000 }
+])
+
+db.sections.insertMany([
+  { _id: 1, section_name: "Sedan Section", car_model: "Honda City", sales_staff: "Mr. Narayan" },
+  { _id: 2, section_name: "SUV Section", car_model: "Skoda", sales_staff: "Mr. Narayan" },
+  { _id: 3, section_name: "SUV Section", car_model: "Creta", sales_staff: "Mr. Ramesh" },
+  { _id: 4, section_name: "Hatchback Section", car_model: "Swift", sales_staff: "Mr. Priya" },
+  { _id: 5, section_name: "MPV Section", car_model: "Ertiga", sales_staff: "Mr. Priya" }
+])
+
+db.sales_staff.insertMany([
+  { _id: 1, name: "Mr. Narayan", sections_handled: ["Sedan Section", "SUV Section"] },
+  { _id: 2, name: "Mr. Ramesh", sections_handled: ["SUV Section"] },
+  { _id: 3, name: "Mr. Priya", sections_handled: ["Hatchback Section", "MPV Section"] }
+])
+
+db.customers.insertMany([
+  { _id: 1, name: "John", enquiries: ["Honda City", "Swift"], purchases: [] },
+  { _id: 2, name: "Alice", enquiries: ["Skoda", "Ertiga"], purchases: ["Ertiga"] },
+  { _id: 3, name: "Bob", enquiries: ["Creta"], purchases: ["Creta"] },
+  { _id: 4, name: "David", enquiries: ["Swift"], purchases: [] }
+])
+
+# Step 4: Write the Cypher queries to fetch the required results
+
+# a. List the types of cars available in the showroom
+db.cars.aggregate([
+  { $group: { _id: "$type" } }
+])
+
+# b. List the sections handled by Mr. Narayan
+db.sections.aggregate([
+  { $match: { sales_staff: "Mr. Narayan" } },
+  { $project: { section_name: 1 } }
+])
+
+# c. List the names of customers who have done only enquiry but not made any purchase
+db.customers.aggregate([
+  { $match: { $and: [{ enquiries: { $ne: [] } }, { purchases: { $size: 0 } }] } },
+  { $project: { name: 1 } }
+])
+
+# d. List the highly sold car model
+db.customers.aggregate([
+  { $unwind: "$purchases" },
+  { $group: { _id: "$purchases", count: { $sum: 1 } } },
+  { $sort: { count: -1 } },
+  { $limit: 1 },
+  { $project: { model: "$_id", sales_count: "$count" } }
+])
+
+# Step 5: Exit MongoDB shell
+exit
